@@ -1,0 +1,121 @@
+"""Desktop/mobile E2E checks and portfolio screenshots on a local preview."""
+import json
+import os
+from pathlib import Path
+from urllib.parse import urlparse
+from playwright.sync_api import sync_playwright, expect
+
+BASE = os.environ.get("CRM_TEST_URL", "http://127.0.0.1:5173").rstrip("/")
+assert urlparse(BASE).hostname in ("127.0.0.1", "localhost"), "Use a loopback test server"
+ROOT = Path(__file__).resolve().parents[1]
+SHOTS = ROOT / "docs" / "screenshots"
+SHOTS.mkdir(parents=True, exist_ok=True)
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(channel="chromium")
+    context = browser.new_context(viewport={"width": 1440, "height": 1000}, locale="ru-RU", timezone_id="Europe/Moscow", device_scale_factor=1)
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(BASE)
+    expect(page.get_by_role("button", name="Попробовать демо")).to_be_visible(timeout=60000)
+    page.screenshot(path=str(SHOTS / "01-login.png"), full_page=True)
+    page.get_by_role("button", name="Попробовать демо").click()
+    expect(page.get_by_role("heading", name="Всё под контролем.")).to_be_visible(timeout=60000)
+    page.wait_for_timeout(1300)
+    page.screenshot(path=str(SHOTS / "02-overview.png"), full_page=True)
+    menu = page.get_by_role("navigation", name="Главная навигация")
+    menu.get_by_role("button", name="Клиенты", exact=True).click()
+    page.screenshot(path=str(SHOTS / "03-clients.png"), full_page=True)
+    page.get_by_role("button", name="Новый клиент", exact=True).click()
+    page.locator('input[name="name"]').fill("Тест Браузера")
+    page.locator('input[name="company"]').fill("Компания E2E")
+    page.locator('input[name="email"]').fill("e2e@example.com")
+    page.locator('textarea[name="notes"]').fill('<script>window.xss_test = true</script>')
+    page.get_by_role("button", name="Добавить клиента", exact=True).click()
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    page.get_by_role("textbox", name="Поиск клиентов").fill("Компания E2E")
+    expect(page.locator("tbody tr")).to_have_count(1)
+    page.get_by_role("button", name="Компания E2E", exact=True).click()
+    expect(page.locator('textarea[name="notes"]')).to_have_value('<script>window.xss_test = true</script>')
+    assert page.evaluate("window.xss_test") is None
+    page.locator('input[name="company"]').fill("Компания E2E обновлена")
+    page.get_by_role("button", name="Сохранить изменения").click()
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    page.reload()
+    expect(page.get_by_role("button", name="Компания E2E обновлена", exact=True)).to_be_visible()
+    page.get_by_role("button", name="Экспорт клиентов в CSV").click()
+    page.get_by_role("button", name="Найти в CRM").click()
+    page.get_by_role("textbox", name="Глобальный поиск").fill("Компания E2E")
+    expect(page.locator(".search-results").get_by_role("button")).to_have_count(1)
+    page.get_by_role("button", name="Закрыть", exact=True).click()
+    menu.get_by_role("button", name="Сделки").click()
+    page.screenshot(path=str(SHOTS / "04-pipeline.png"), full_page=True)
+    page.get_by_role("button", name="Новая сделка", exact=True).click()
+    page.locator('input[name="title"]').fill("Сделка E2E")
+    client = next(c for c in context.request.get(BASE + "/api/crm/bootstrap").json()["clients"] if c["company"] == "Компания E2E обновлена")
+    page.locator('select[name="clientId"]').select_option(client["id"])
+    page.locator('input[name="amount"]').fill("123000")
+    page.get_by_role("button", name="Создать сделку", exact=True).click()
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    card = page.locator(".deal-card").filter(has_text="Сделка E2E")
+    expect(card).to_be_visible()
+    destination = page.locator(".kanban-column").filter(has=page.locator(".kanban-stage", has_text="Переговоры"))
+    card.drag_to(destination)
+    expect(destination.locator(".deal-card").filter(has_text="Сделка E2E")).to_be_visible()
+    card.click()
+    page.locator('select[name="status"]').select_option("won")
+    page.get_by_role("button", name="Сохранить изменения").click()
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    page.get_by_role("button", name="Закрытые", exact=True).click()
+    expect(page.locator(".kanban-column").filter(has=page.locator(".kanban-stage", has_text="Успешно")).get_by_role("heading", name="Сделка E2E")).to_be_visible()
+    menu.get_by_role("button", name="Задачи", exact=True).click()
+    page.get_by_role("button", name="Новая задача", exact=True).click()
+    page.locator('input[name="title"]').fill("Задача E2E")
+    page.get_by_role("button", name="Добавить задачу", exact=True).click()
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    page.get_by_role("checkbox", name="Завершить: Задача E2E", exact=True).click()
+    page.get_by_role("button", name="Готово").click()
+    expect(page.get_by_role("button", name="Задача E2E")).to_be_visible()
+    page.screenshot(path=str(SHOTS / "05-tasks.png"), full_page=True)
+    menu.get_by_role("button", name="Аналитика", exact=True).click()
+    page.get_by_label("Период аналитики").select_option("7")
+    page.wait_for_timeout(700)
+    page.get_by_label("Период аналитики").select_option("30")
+    page.wait_for_timeout(700)
+    page.screenshot(path=str(SHOTS / "06-analytics.png"), full_page=True)
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Desktop horizontal overflow"
+    page.get_by_role("button", name="Последние события").click()
+    expect(page.get_by_role("heading", name="Последние события")).to_be_visible()
+    page.get_by_role("button", name="Закрыть", exact=True).click()
+    assert not errors, errors
+
+    mobile = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, locale="ru-RU", timezone_id="Europe/Moscow")
+    mp = mobile.new_page()
+    mp.goto(BASE)
+    mp.get_by_role("button", name="Попробовать демо").click()
+    expect(mp.get_by_role("heading", name="Всё под контролем.")).to_be_visible()
+    mp.wait_for_timeout(800)
+    assert mp.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Mobile horizontal overflow"
+    mp.screenshot(path=str(SHOTS / "07-mobile.png"), full_page=True)
+    mp.get_by_role("button", name="Открыть меню").click()
+    mp.get_by_role("navigation").get_by_role("button", name="Сделки").click()
+    expect(mp.locator(".kanban-board")).to_be_visible()
+    assert mp.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Mobile kanban overflows the page"
+    mp.locator(".deal-card").first.click()
+    expect(mp.get_by_role("dialog")).to_be_visible()
+    mp.get_by_role("button", name="Закрыть", exact=True).click()
+    expect(mp.get_by_role("dialog")).to_have_count(0)
+
+    # The starter's development-only sign-in tests the personal, empty workspace path.
+    personal = browser.new_context(viewport={"width": 1280, "height": 900})
+    pp = personal.new_page()
+    pp.goto(BASE + "/signin-with-chatgpt?return_to=/")
+    expect(pp.get_by_role("heading", name="Всё под контролем.")).to_be_visible()
+    response = personal.request.get(BASE + "/api/crm/bootstrap")
+    assert response.status == 200 and response.json()["user"]["isDemo"] is False
+    assert personal.request.post(BASE + "/api/crm/reset", data="{}", headers={"Content-Type": "application/json", "Origin": BASE}).status == 403
+    context.request.delete(BASE + "/api/session", headers={"Content-Type": "application/json", "Origin": BASE})
+    mobile.request.delete(BASE + "/api/session", headers={"Content-Type": "application/json", "Origin": BASE})
+    browser.close()
+print("PASS: desktop/mobile UI, CRUD, search, CSV, drag-and-drop, statuses, tasks, persistence, XSS escaping, personal sign-in, screenshots.")
