@@ -4,6 +4,10 @@
 
 **Демо:** https://delo-mini-crm-portfolio.cheekyolm65.chatgpt.site
 
+**Исходники:** [Vesel-mladshiy/delo-crm](https://github.com/Vesel-mladshiy/delo-crm) · **Видео:** [демонстрация в релизе v0.1.0](https://github.com/Vesel-mladshiy/delo-crm/releases/tag/v0.1.0)
+
+[![CRM checks](https://github.com/Vesel-mladshiy/delo-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/Vesel-mladshiy/delo-crm/actions/workflows/ci.yml)
+
 Нажмите **«Попробовать демо»**: приложение создаст личную песочницу с 12 клиентами, 20 сделками и 5 задачами. Пароль и регистрация не нужны. Все компании и контакты вымышлены; изменения одного посетителя не видны другим. Демоверсия доступна 7 дней в этом браузере; выход удаляет её. Для постоянного личного пространства предусмотрен вход с ChatGPT.
 
 ![Обзор Дело CRM](docs/screenshots/02-overview.png)
@@ -78,6 +82,8 @@ flowchart LR
 Нужны Node.js **22.13+**, npm и Git. В Windows используйте PowerShell; Bash не требуется.
 
 ```bash
+git clone https://github.com/Vesel-mladshiy/delo-crm.git
+cd delo-crm
 npm ci
 npm run build
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_sturdy_masque.sql
@@ -144,6 +150,7 @@ GitHub Actions выполняет TypeScript, модульные тесты и �
 - [Сценарий видео на 60–90 секунд](docs/demo-script.md)
 - [Что сделал Codex и что проверить самостоятельно](docs/ai-workflow.md)
 - [Краткое описание проекта для резюме](docs/portfolio-case.md)
+- [Короткий рабочий процесс с Git](docs/git-workflow.md)
 
 Запись демонстрации: `npm run demo:record`. Скрипт работает с локальным приложением и создаёт MP4 в `outputs/delo-crm-demo.mp4`. Видео не загружается в Git автоматически; его можно прикрепить к GitHub Release или разместить рядом с портфолио.
 

@@ -12,6 +12,8 @@
 
 **Демо:** https://delo-mini-crm-portfolio.cheekyolm65.chatgpt.site
 
-**Репозиторий:** ссылка появится после публикации исходников в аккаунте GitHub автора. Хранилище исходников Sites не выдаётся за GitHub.
+**Репозиторий:** https://github.com/Vesel-mladshiy/delo-crm
+
+**Видео:** https://github.com/Vesel-mladshiy/delo-crm/releases/tag/v0.1.0
 
 Не заявляйте коммерческий результат, число пользователей или рост продаж без реальных данных. Этот проект демонстрирует технический и продуктовый сценарий.
